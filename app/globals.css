@@ -1,1 +1,63 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
+:root {
+  --bg: #faf8f3;
+  --card: #ffffff;
+  --gold: #c8a84b;
+  --gold-light: #e8c96b;
+  --mint: #2ead9f;
+  --mint-soft: #e6f7f5;
+  --ink: #1a1a1a;
+  --muted: #6b6560;
+  --border: rgba(200, 168, 75, 0.35);
+}
+
+html, body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  min-height: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.card {
+  background: var(--card);
+  border: 1.5px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+}
+
+.card-neo {
+  background: var(--card);
+  border: 2px solid #1a1a1a;
+  border-radius: 14px;
+  box-shadow: 4px 4px 0 #c8a84b;
+}
+
+.pill {
+  border-radius: 9999px;
+}
+
+@keyframes colorCycle {
+  0% { color: #2ead9f; }
+  33% { color: #c8a84b; }
+  66% { color: #e8c96b; }
+  100% { color: #2ead9f; }
+}
+.animate-name {
+  animation: colorCycle 4s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.45; transform: scale(0.85); }
+}
+.pulse-dot {
+  animation: pulse-dot 1.6s ease-in-out infinite;
+}
+
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-thumb { background: var(--gold); border-radius: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
